@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first
+  argument and return `String` instead of `File` per WDL v1.2.1
+  ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
+  [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
+
+#### Fixed
+
+* Fixed a bug where a dependency cycle was incorrectly detected due to an
+  invalid edge being added between nodes in the dependency graph when a scatter
+  variable shadowed an outer declaration of the same name (#[509](https://github.com/stjude-rust-labs/sprocket/pull/509)).
+
 ## 0.15.0 - 11-21-2025
 
 #### Added

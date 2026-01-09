@@ -799,6 +799,18 @@ impl From<PrimitiveType> for FunctionalType {
     }
 }
 
+impl From<ArrayType> for FunctionalType {
+    fn from(value: ArrayType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
+impl From<MapType> for FunctionalType {
+    fn from(value: MapType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
 impl From<GenericType> for FunctionalType {
     fn from(value: GenericType) -> Self {
         Self::Generic(value)
@@ -1664,21 +1676,21 @@ pub struct StandardLibrary {
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
     /// The type for `Array[Int]`.
-    array_int: Type,
+    array_int: ArrayType,
     /// The type for `Array[String]`.
-    array_string: Type,
+    array_string: ArrayType,
     /// The type for `Array[File]`.
-    array_file: Type,
+    array_file: ArrayType,
     /// The type for `Array[Object]`.
-    array_object: Type,
+    array_object: ArrayType,
     /// The type for `Array[String]+`.
-    array_string_non_empty: Type,
+    array_string_non_empty: ArrayType,
     /// The type for `Array[Array[String]]`.
-    array_array_string: Type,
+    array_array_string: ArrayType,
     /// The type for `Map[String, String]`.
-    map_string_string: Type,
+    map_string_string: MapType,
     /// The type for `Map[String, Int]`.
-    map_string_int: Type,
+    map_string_int: MapType,
 }
 
 impl StandardLibrary {
@@ -1693,56 +1705,56 @@ impl StandardLibrary {
     }
 
     /// Gets the type for `Array[Int]`.
-    pub fn array_int_type(&self) -> &Type {
+    pub fn array_int_type(&self) -> &ArrayType {
         &self.array_int
     }
 
     /// Gets the type for `Array[String]`.
-    pub fn array_string_type(&self) -> &Type {
+    pub fn array_string_type(&self) -> &ArrayType {
         &self.array_string
     }
 
     /// Gets the type for `Array[File]`.
-    pub fn array_file_type(&self) -> &Type {
+    pub fn array_file_type(&self) -> &ArrayType {
         &self.array_file
     }
 
     /// Gets the type for `Array[Object]`.
-    pub fn array_object_type(&self) -> &Type {
+    pub fn array_object_type(&self) -> &ArrayType {
         &self.array_object
     }
 
     /// Gets the type for `Array[String]+`.
-    pub fn array_string_non_empty_type(&self) -> &Type {
+    pub fn array_string_non_empty_type(&self) -> &ArrayType {
         &self.array_string_non_empty
     }
 
     /// Gets the type for `Array[Array[String]]`.
-    pub fn array_array_string_type(&self) -> &Type {
+    pub fn array_array_string_type(&self) -> &ArrayType {
         &self.array_array_string
     }
 
     /// Gets the type for `Map[String, String]`.
-    pub fn map_string_string_type(&self) -> &Type {
+    pub fn map_string_string_type(&self) -> &MapType {
         &self.map_string_string
     }
 
     /// Gets the type for `Map[String, Int]`.
-    pub fn map_string_int_type(&self) -> &Type {
+    pub fn map_string_int_type(&self) -> &MapType {
         &self.map_string_int
     }
 }
 
 /// Represents the WDL standard library.
 pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
-    let array_int: Type = ArrayType::new(PrimitiveType::Integer).into();
-    let array_string: Type = ArrayType::new(PrimitiveType::String).into();
-    let array_file: Type = ArrayType::new(PrimitiveType::File).into();
-    let array_object: Type = ArrayType::new(Type::Object).into();
-    let array_string_non_empty: Type = ArrayType::non_empty(PrimitiveType::String).into();
-    let array_array_string: Type = ArrayType::new(array_string.clone()).into();
-    let map_string_string: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
-    let map_string_int: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
+    let array_int = ArrayType::new(PrimitiveType::Integer);
+    let array_string = ArrayType::new(PrimitiveType::String);
+    let array_file = ArrayType::new(PrimitiveType::File);
+    let array_object = ArrayType::new(Type::Object);
+    let array_string_non_empty = ArrayType::non_empty(PrimitiveType::String);
+    let array_array_string = ArrayType::new(array_string.clone());
+    let map_string_string = MapType::new(PrimitiveType::String, PrimitiveType::String);
+    let map_string_int = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
     let mut functions = IndexMap::new();
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor
@@ -2333,13 +2345,13 @@ workflow test_basename {
     );
 
     const JOIN_PATHS_DEFINITION: &str = r#"
-Joins together two or more paths into an absolute path in the host filesystem.
+Joins together two or more paths into an absolute path in the execution environment's filesystem.
 
 There are three variants of this function:
 
-1. `File join_paths(File, String)`: Joins together exactly two paths. The first path may be either absolute or relative and must specify a directory; the second path is relative to the first path and may specify a file or directory.
-2. `File join_paths(File, Array[String]+)`: Joins together any number of relative paths with a base path. The first argument may be either an absolute or a relative path and must specify a directory. The paths in the second array argument must all be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
-3. `File join_paths(Array[String]+)`: Joins together any number of paths. The array must not be empty. The *first* element of the array may be either absolute or relative; subsequent path(s) must be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+1. `String join_paths(Directory, String)`: Joins together exactly two paths. The second path is relative to the first directory and may specify a file or directory.
+2. `String join_paths(Directory, Array[String]+)`: Joins together any number of relative paths with a base directory. The paths in the array argument must all be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+3. `String join_paths(Array[String]+)`: Joins together any number of paths. The array must not be empty. The *first* element of the array may be either absolute or relative; subsequent path(s) must be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
 
 An absolute path starts with `/` and indicates that the path is relative to the root of the environment in which the task is executed. Only the first path may be absolute. If any subsequent paths are absolute, it is an error.
 
@@ -2347,46 +2359,36 @@ A relative path does not start with `/` and indicates the path is relative to it
 
 **Parameters**
 
-1. `File|Array[String]+`: Either a path or an array of paths.
-2. `String|Array[String]+`: A relative path or paths; only allowed if the first argument is a `File`.
+1. `Directory|Array[String]+`: Either a directory path or an array of paths.
+2. `String|Array[String]+`: A relative path or paths; only allowed if the first argument is a `Directory`.
 
-**Returns**: A `File` representing an absolute path that results from joining all the paths in order (left-to-right), and resolving the resulting path against the default parent directory if it is relative.
+**Returns**: A `String` representing an absolute path that results from joining all the paths in order (left-to-right), and resolving the resulting path against the default parent directory if it is relative.
 
 Example: join_paths_task.wdl
 
 ```wdl
 version 1.2
 
-task resolve_paths_task {
+task join_paths {
   input {
-    File abs_file = "/usr"
+    Directory abs_dir = "/usr"
     String abs_str = "/usr"
     String rel_dir_str = "bin"
-    File rel_file = "echo"
-    File rel_dir_file = "mydir"
-    String rel_str = "mydata.txt"
+    String rel_file = "echo"
   }
 
   # these are all equivalent to '/usr/bin/echo'
-  File bin1 = join_paths(abs_file, [rel_dir_str, rel_file])
-  File bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
-  File bin3 = join_paths([abs_str, rel_dir_str, rel_file])
+  String bin1 = join_paths(abs_dir, [rel_dir_str, rel_file])
+  String bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
+  String bin3 = join_paths([abs_str, rel_dir_str, rel_file])
 
-  # the default behavior is that this resolves to
-  # '<working dir>/mydir/mydata.txt'
-  File data = join_paths(rel_dir_file, rel_str)
-
-  # this resolves to '<working dir>/bin/echo', which is non-existent
-  File doesnt_exist = join_paths([rel_dir_str, rel_file])
   command <<<
-    mkdir ~{rel_dir_file}
-    ~{bin1} -n "hello" > ~{data}
+    ~{bin1} -n "hello" > output.txt
   >>>
 
   output {
     Boolean bins_equal = (bin1 == bin2) && (bin1 == bin3)
-    String result = read_string(data)
-    File? missing_file = doesnt_exist
+    String result = read_string("output.txt")
   }
 
   runtime {
@@ -2406,32 +2408,32 @@ task resolve_paths_task {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(
                             "base",
-                            PrimitiveType::File,
+                            PrimitiveType::Directory,
                             "Either a path or an array of paths.",
                         )
                         .parameter(
                             "relative",
                             PrimitiveType::String,
                             "A relative path or paths; only allowed if the first argument is a \
-                             `File`.",
+                             `Directory`.",
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(
                             "base",
-                            PrimitiveType::File,
+                            PrimitiveType::Directory,
                             "Either a path or an array of paths."
                         )
                         .parameter(
                             "relative",
                             array_string_non_empty.clone(),
                             "A relative path or paths; only allowed if the first argument is a \
-                             `File`."
+                             `Directory`."
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
@@ -2441,7 +2443,7 @@ task resolve_paths_task {
                             array_string_non_empty.clone(),
                             "Either a path or an array of paths."
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                 ])
@@ -5218,9 +5220,9 @@ mod test {
                 "basename(path: File, <suffix: String>) -> String",
                 "basename(path: String, <suffix: String>) -> String",
                 "basename(path: Directory, <suffix: String>) -> String",
-                "join_paths(base: File, relative: String) -> File",
-                "join_paths(base: File, relative: Array[String]+) -> File",
-                "join_paths(paths: Array[String]+) -> File",
+                "join_paths(base: Directory, relative: String) -> String",
+                "join_paths(base: Directory, relative: Array[String]+) -> String",
+                "join_paths(paths: Array[String]+) -> String",
                 "glob(pattern: String) -> Array[File]",
                 "size(value: None, <unit: String>) -> Float",
                 "size(value: File?, <unit: String>) -> Float",
